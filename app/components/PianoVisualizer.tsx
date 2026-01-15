@@ -66,7 +66,7 @@ export default function PianoVisualizer({
   return (
     <div
       className="flex w-full shrink-0 flex-col border-t-2 border-amber-800 bg-gradient-to-b from-amber-900 to-amber-950"
-      style={{ height: "calc(7rem + env(safe-area-inset-bottom))", paddingBottom: "env(safe-area-inset-bottom)" }}
+      style={{ height: "calc(7rem + env(safe-area-inset-bottom) + 8px)", paddingBottom: "calc(env(safe-area-inset-bottom) + 8px)" }}
     >
       {/* Selected note indicator */}
       <div className="flex h-6 items-center justify-center bg-amber-950/80">
