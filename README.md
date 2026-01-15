@@ -1,36 +1,65 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# MusicXML Piano Viewer
+
+A web app for viewing MusicXML sheet music with an interactive piano visualizer. Tap any note on the score to see exactly which key it is on a full 88-key piano.
+
+![Screenshot](https://img.shields.io/badge/Next.js-16-black) ![License](https://img.shields.io/badge/license-MIT-blue)
+
+## Features
+
+- **Sheet Music Rendering** — Uses [OpenSheetMusicDisplay](https://opensheetmusicdisplay.org/) to render MusicXML files with full notation support (grand staff, accidentals, dynamics, etc.)
+- **Interactive Note Selection** — Click/tap any note to highlight it and see the corresponding piano key
+- **Chord Support** — Clicking a chord highlights all notes in the chord on both the score and piano
+- **Full 88-Key Piano** — Standard piano range from A0 to C8
+- **Drag & Drop Upload** — Drop your own `.musicxml`, `.xml`, or `.mxl` files to view them
+- **Public Domain Library** — 69 classical pieces from [MuseTrainer](https://musetrainer.github.io/library/) ready to explore
 
 ## Getting Started
 
-First, run the development server:
-
 ```bash
+# Install dependencies
+npm install
+
+# Run development server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Usage
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. **Library Screen** — Browse the song list or drag & drop your own MusicXML file
+2. **Viewer Screen** — Scroll through the sheet music and tap notes to see them on the piano
+3. **Piano Visualizer** — Shows which keys correspond to the selected note(s)
 
-## Learn More
+## Tech Stack
 
-To learn more about Next.js, take a look at the following resources:
+- [Next.js 16](https://nextjs.org/) with App Router
+- [React 19](https://react.dev/)
+- [Tailwind CSS 4](https://tailwindcss.com/)
+- [OpenSheetMusicDisplay](https://opensheetmusicdisplay.org/) for MusicXML rendering
+- TypeScript
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Adding Your Own Music
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Place `.musicxml`, `.xml`, or `.mxl` files in `public/musicxml/` and add entries to `app/lib/songs.ts`:
 
-## Deploy on Vercel
+```typescript
+{
+  id: "my-song",
+  title: "My Song Title",
+  composer: "Composer Name",
+  file: "/musicxml/my-song.mxl",
+  sourceUrl: "https://example.com",
+}
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Or simply drag and drop files onto the library screen.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Credits
+
+- Sheet music library from [MuseTrainer](https://musetrainer.github.io/library/) (Public Domain)
+- MusicXML rendering by [OpenSheetMusicDisplay](https://opensheetmusicdisplay.org/)
+
+## License
+
+MIT
