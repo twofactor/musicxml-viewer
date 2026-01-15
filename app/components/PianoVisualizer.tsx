@@ -15,7 +15,20 @@ type WhiteKey = {
   hasBlackAfter: boolean;
 };
 
-const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+const NOTE_NAMES = [
+  "C",
+  "C#",
+  "D",
+  "D#",
+  "E",
+  "F",
+  "F#",
+  "G",
+  "G#",
+  "A",
+  "A#",
+  "B",
+];
 const BLACK_NOTES = new Set([1, 3, 6, 8, 10]);
 
 const toNoteName = (midi: number) => {
@@ -60,13 +73,16 @@ export default function PianoVisualizer({
       };
     })
     .filter(
-      (key): key is { midi: number; leftPercent: number } => key !== null,
+      (key): key is { midi: number; leftPercent: number } => key !== null
     );
 
   return (
     <div
       className="flex w-full shrink-0 flex-col border-t-2 border-amber-800 bg-gradient-to-b from-amber-900 to-amber-950"
-      style={{ height: "calc(7rem + env(safe-area-inset-bottom) + 8px)", paddingBottom: "calc(env(safe-area-inset-bottom) + 8px)" }}
+      style={{
+        height: "calc(7rem + env(safe-area-inset-bottom) + 8px)",
+        paddingBottom: "calc(env(safe-area-inset-bottom) + 8px)",
+      }}
     >
       {/* Selected note indicator */}
       <div className="flex h-6 items-center justify-center bg-amber-950/80">

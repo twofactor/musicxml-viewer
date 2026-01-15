@@ -1,14 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { songs, type Song } from "../lib/songs";
-import MusicRenderer from "./MusicRenderer";
+import MusicRenderer, {
+  type MusicRendererHandle,
+  type NoteEntry,
+  type NoteSelection,
+  type PlaybackEvent,
+} from "./MusicRenderer";
 import PianoVisualizer from "./PianoVisualizer";
-
-type NoteSelection = {
-  name: string;
-  midi: number;
-};
 
 type Screen =
   | { type: "library" }
@@ -18,15 +18,196 @@ export default function App() {
   const [screen, setScreen] = useState<Screen>({ type: "library" });
   const [selectedNotes, setSelectedNotes] = useState<NoteSelection[]>([]);
   const [isDragging, setIsDragging] = useState(false);
+  const [activeTool, setActiveTool] = useState<"note" | "bar">("note");
+  const [isPlaying, setIsPlaying] = useState(false);
+  const rendererRef = useRef<MusicRendererHandle | null>(null);
+  const playbackEventsRef = useRef<PlaybackEvent[]>([]);
+  const playbackTimeoutsRef = useRef<number[]>([]);
+  const playbackStartRef = useRef<number | null>(null);
+  const playheadRef = useRef(0);
+  const isPlayingRef = useRef(false);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const masterGainRef = useRef<GainNode | null>(null);
+  const localIdRef = useRef(0);
+
+  const ensureAudioContext = async () => {
+    if (!audioContextRef.current) {
+      audioContextRef.current = new AudioContext();
+      masterGainRef.current = audioContextRef.current.createGain();
+      masterGainRef.current.gain.value = 0.18;
+      masterGainRef.current.connect(audioContextRef.current.destination);
+    }
+    if (audioContextRef.current.state === "suspended") {
+      await audioContextRef.current.resume();
+    }
+    return audioContextRef.current;
+  };
+
+  const midiToFrequency = (midi: number) => 440 * Math.pow(2, (midi - 69) / 12);
+
+  const playNote = async (midi: number, durationSec: number) => {
+    const context = await ensureAudioContext();
+    const masterGain = masterGainRef.current;
+    if (!masterGain) {
+      return;
+    }
+    const osc = context.createOscillator();
+    const gain = context.createGain();
+    const filter = context.createBiquadFilter();
+
+    osc.type = "triangle";
+    osc.frequency.value = midiToFrequency(midi);
+    filter.type = "lowpass";
+    filter.frequency.value = 5200;
+    filter.Q.value = 0.6;
+
+    osc.connect(filter);
+    filter.connect(gain);
+    gain.connect(masterGain);
+
+    const now = context.currentTime;
+    const attack = 0.02;
+    const release = Math.max(0.12, durationSec);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.7, now + attack);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + release);
+
+    osc.start(now);
+    osc.stop(now + release + 0.05);
+  };
+
+  const playChord = (selections: NoteSelection[], durationSec: number) => {
+    selections.forEach((note) => {
+      void playNote(note.midi, durationSec);
+    });
+  };
+
+  const clearPlaybackTimers = useCallback(() => {
+    playbackTimeoutsRef.current.forEach((id) => window.clearTimeout(id));
+    playbackTimeoutsRef.current = [];
+  }, []);
+
+  const stopPlayback = useCallback(
+    (resetPlayhead: boolean) => {
+      clearPlaybackTimers();
+      isPlayingRef.current = false;
+      setIsPlaying(false);
+      playbackStartRef.current = null;
+      if (resetPlayhead) {
+        playheadRef.current = 0;
+      }
+      rendererRef.current?.clearHighlights();
+      setSelectedNotes([]);
+    },
+    [clearPlaybackTimers]
+  );
+
+  const scheduleEvents = (
+    events: PlaybackEvent[],
+    startOffsetSec: number,
+    usePlaybackState: boolean
+  ) => {
+    clearPlaybackTimers();
+    if (!events.length) {
+      return;
+    }
+    void ensureAudioContext();
+    const context = audioContextRef.current;
+    if (!context) {
+      return;
+    }
+    if (usePlaybackState) {
+      isPlayingRef.current = true;
+      setIsPlaying(true);
+    }
+    playbackStartRef.current = context.currentTime - startOffsetSec;
+
+    events.forEach((event) => {
+      if (event.startSec < startOffsetSec) {
+        return;
+      }
+      const delayMs = (event.startSec - startOffsetSec) * 1000;
+      const timeoutId = window.setTimeout(() => {
+        if (usePlaybackState && !isPlayingRef.current) {
+          return;
+        }
+        rendererRef.current?.highlightEntries(event.entries);
+        playChord(event.selections, event.durationSec);
+      }, delayMs);
+      playbackTimeoutsRef.current.push(timeoutId);
+    });
+
+    const lastEvent = events[events.length - 1];
+    const endMs =
+      (lastEvent.startSec + lastEvent.durationSec - startOffsetSec) * 1000 + 80;
+    const finishId = window.setTimeout(() => {
+      if (usePlaybackState) {
+        stopPlayback(true);
+      } else {
+        rendererRef.current?.clearHighlights();
+      }
+    }, Math.max(0, endMs));
+    playbackTimeoutsRef.current.push(finishId);
+  };
+
+  const startPlayback = () => {
+    scheduleEvents(playbackEventsRef.current, playheadRef.current, true);
+  };
+
+  const pausePlayback = () => {
+    if (!isPlayingRef.current) {
+      return;
+    }
+    const context = audioContextRef.current;
+    if (context && playbackStartRef.current !== null) {
+      playheadRef.current = Math.max(
+        0,
+        context.currentTime - playbackStartRef.current
+      );
+    }
+    clearPlaybackTimers();
+    isPlayingRef.current = false;
+    setIsPlaying(false);
+  };
+
+  const handleNotePlayed = (entries: NoteEntry[]) => {
+    if (activeTool !== "note") {
+      return;
+    }
+    void ensureAudioContext();
+    playChord(
+      entries.map((entry) => entry.selection),
+      0.65
+    );
+  };
+
+  const handleBarTriggered = (events: PlaybackEvent[]) => {
+    if (activeTool !== "bar") {
+      return;
+    }
+    stopPlayback(true);
+    scheduleEvents(events, 0, false);
+  };
+
+  const handleScoreReady = useCallback(
+    (events: PlaybackEvent[]) => {
+      playbackEventsRef.current = events;
+      playheadRef.current = 0;
+      stopPlayback(true);
+    },
+    [stopPlayback]
+  );
 
   const goToLibrary = () => {
     setScreen({ type: "library" });
     setSelectedNotes([]);
+    stopPlayback(true);
   };
 
   const openSong = (song: Song) => {
     setScreen({ type: "viewer", song });
     setSelectedNotes([]);
+    stopPlayback(true);
   };
 
   const openLocalFile = async (file: File) => {
@@ -34,8 +215,9 @@ export default function App() {
     const isMxl = file.name.toLowerCase().endsWith(".mxl");
     const xmlData = isMxl ? await file.arrayBuffer() : undefined;
     const xmlText = isMxl ? undefined : await file.text();
+    localIdRef.current += 1;
     const localSong: Song = {
-      id: `local-${Date.now()}`,
+      id: `local-${localIdRef.current}`,
       title: fileName || "Imported Score",
       composer: "Local file",
       file: "",
@@ -43,7 +225,17 @@ export default function App() {
     };
     setScreen({ type: "viewer", song: localSong, xmlText, xmlData });
     setSelectedNotes([]);
+    stopPlayback(true);
   };
+
+  useEffect(() => {
+    return () => {
+      stopPlayback(true);
+      if (audioContextRef.current) {
+        void audioContextRef.current.close();
+      }
+    };
+  }, [stopPlayback]);
 
   if (screen.type === "library") {
     return (
@@ -109,7 +301,9 @@ export default function App() {
                   }
                 }}
               />
-              <span className="text-sm font-semibold">Drop a MusicXML file</span>
+              <span className="text-sm font-semibold">
+                Drop a MusicXML file
+              </span>
               <span className="text-xs text-amber-700/70">
                 or click to upload .musicxml/.xml/.mxl
               </span>
@@ -147,7 +341,6 @@ export default function App() {
             ))}
           </div>
         </main>
-
       </div>
     );
   }
@@ -186,16 +379,50 @@ export default function App() {
           <p className="text-[10px] text-amber-300/70">{song.composer}</p>
         </div>
 
-        <div className="w-20" />
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => (isPlaying ? pausePlayback() : startPlayback())}
+            className="flex items-center gap-1.5 rounded-md bg-amber-700/50 px-2.5 py-1.5 text-xs font-semibold text-amber-100 transition hover:bg-amber-700"
+          >
+            {isPlaying ? "Pause" : "Play"}
+          </button>
+          <div className="flex items-center rounded-md bg-amber-950/40 p-0.5 text-[11px] font-semibold text-amber-100">
+            <button
+              onClick={() => setActiveTool("note")}
+              className={`rounded px-2 py-1 transition ${
+                activeTool === "note"
+                  ? "bg-amber-600 text-amber-950"
+                  : "text-amber-100/80 hover:text-amber-100"
+              }`}
+            >
+              Note
+            </button>
+            <button
+              onClick={() => setActiveTool("bar")}
+              className={`rounded px-2 py-1 transition ${
+                activeTool === "bar"
+                  ? "bg-amber-600 text-amber-950"
+                  : "text-amber-100/80 hover:text-amber-100"
+              }`}
+            >
+              Bar
+            </button>
+          </div>
+        </div>
       </header>
 
       {/* Sheet music area */}
       <main className="score-scroll flex-1 overflow-y-auto overflow-x-hidden">
         <MusicRenderer
+          ref={rendererRef}
           xmlUrl={song.file || undefined}
           xmlText={screen.xmlText}
           xmlData={screen.xmlData}
+          activeTool={activeTool}
           onNoteSelected={setSelectedNotes}
+          onNotePlayed={handleNotePlayed}
+          onBarTriggered={handleBarTriggered}
+          onScoreReady={handleScoreReady}
         />
       </main>
 
