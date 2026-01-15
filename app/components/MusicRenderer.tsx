@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -89,7 +90,7 @@ const buildNoteIndex = (osmd: any) => {
 
   const sheet = osmd?.GraphicSheet;
   if (!sheet?.MusicPages) {
-    return lookup;
+    return { lookup, hitboxes };
   }
 
   let noteIndex = 0;
@@ -255,7 +256,8 @@ export default function MusicRenderer({
         if (xmlUrl && !xmlText && !xmlData) {
           await osmd.load(xmlUrl);
         } else {
-          await osmd.load(scoreData);
+          // OSMD accepts Uint8Array for .mxl files at runtime, but types don't reflect this
+          await osmd.load(scoreData as any);
         }
         await osmd.render();
 
