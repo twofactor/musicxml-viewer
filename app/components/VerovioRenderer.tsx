@@ -27,6 +27,58 @@ type VerovioRendererProps = {
   onScoreReady?: (events: PlaybackEvent[]) => void;
 };
 
+type VerovioGlobal = {
+  toolkit: new () => {
+    setOptions: (options: Record<string, unknown>) => void;
+    loadData: (data: string) => void;
+    getPageCount: () => number;
+    renderToSVG: (page: number) => string;
+  };
+};
+
+const loadVerovioFromCdn = () =>
+  new Promise<VerovioGlobal>((resolve, reject) => {
+    if (typeof window === "undefined") {
+      reject(new Error("Verovio can only load in the browser."));
+      return;
+    }
+    const existing = (window as Window & { verovio?: VerovioGlobal }).verovio;
+    if (existing?.toolkit) {
+      resolve(existing);
+      return;
+    }
+    const script = document.createElement("script");
+    script.src =
+      "https://www.verovio.org/javascript/latest/verovio-toolkit-wasm.js";
+    script.async = true;
+    script.onload = () => {
+      const globalVerovio = (window as Window & { verovio?: VerovioGlobal })
+        .verovio;
+      if (!globalVerovio?.toolkit) {
+        reject(new Error("Verovio CDN loaded without toolkit."));
+        return;
+      }
+      resolve(globalVerovio);
+    };
+    script.onerror = () => reject(new Error("Failed to load Verovio CDN."));
+    document.body.appendChild(script);
+  });
+
+const loadVerovioToolkit = async () => {
+  try {
+    const verovioModule = await import("verovio");
+    const verovio =
+      (verovioModule as { default?: VerovioGlobal }).default ??
+      (verovioModule as VerovioGlobal);
+    if (verovio?.toolkit) {
+      return verovio as VerovioGlobal;
+    }
+  } catch {
+    // Fall back to CDN loader below.
+  }
+  return loadVerovioFromCdn();
+};
+
 const NOTE_NAMES = [
   "C",
   "C#",
@@ -273,10 +325,8 @@ const VerovioRenderer = forwardRef<MusicRendererHandle, VerovioRendererProps>(
             return;
           }
 
-          const verovioModule = await import("verovio");
-          const verovio =
-            (verovioModule as { default?: unknown }).default ?? verovioModule;
-          const toolkit = new (verovio as { toolkit: new () => any }).toolkit();
+          const verovio = await loadVerovioToolkit();
+          const toolkit = new verovio.toolkit();
           toolkitRef.current = toolkit;
 
           toolkit.setOptions({
