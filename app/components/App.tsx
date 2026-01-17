@@ -215,15 +215,24 @@ export default function App() {
   }, [rendererMode, stopPlayback]);
 
   useEffect(() => {
+    const formatBrowserError = (event: ErrorEvent) => {
+      const base = event.error?.stack || event.message || "Unknown error";
+      if (event.filename) {
+        return `${base} @ ${event.filename}:${event.lineno}:${event.colno}`;
+      }
+      return base;
+    };
     const handleError = (event: ErrorEvent) => {
-      const message = event.error?.stack || event.message || "Unknown error";
+      const message = formatBrowserError(event);
       setRuntimeError(message);
       console.error("Runtime error:", message);
     };
     const handleRejection = (event: PromiseRejectionEvent) => {
       const reason = event.reason;
       const message =
-        reason?.stack || reason?.message || String(reason || "Unknown rejection");
+        reason?.stack ||
+        reason?.message ||
+        String(reason || "Unknown rejection");
       setRuntimeError(message);
       console.error("Unhandled rejection:", message);
     };
