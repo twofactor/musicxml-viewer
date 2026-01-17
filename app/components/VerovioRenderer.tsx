@@ -27,14 +27,18 @@ type VerovioRendererProps = {
   onScoreReady?: (events: PlaybackEvent[]) => void;
 };
 
-type VerovioGlobal = {
-  toolkit: new () => {
-    setOptions: (options: Record<string, unknown>) => void;
-    loadData: (data: string) => void;
-    getPageCount: () => number;
-    renderToSVG: (page: number) => string;
-  };
+type VerovioToolkitInstance = {
+  setOptions: (options: Record<string, unknown>) => void;
+  loadData: (data: string) => void;
+  getPageCount: () => number;
+  renderToSVG: (page: number) => string;
 };
+
+type VerovioGlobal = {
+  toolkit: new () => VerovioToolkitInstance;
+};
+
+type VerovioToolkitClass = new (module: unknown) => VerovioToolkitInstance;
 
 const loadVerovioFromCdn = () =>
   new Promise<VerovioGlobal>((resolve, reject) => {
@@ -66,17 +70,19 @@ const loadVerovioFromCdn = () =>
 
 const loadVerovioToolkit = async () => {
   try {
-    const verovioModule = await import("verovio");
-    const verovio =
-      (verovioModule as { default?: VerovioGlobal }).default ??
-      (verovioModule as VerovioGlobal);
-    if (verovio?.toolkit) {
-      return verovio as VerovioGlobal;
+    const [{ default: createVerovioModule }, { VerovioToolkit }] =
+      await Promise.all([import("verovio/wasm"), import("verovio/esm")]);
+    const module = await createVerovioModule();
+    const Toolkit = VerovioToolkit as VerovioToolkitClass;
+    class ToolkitWrapper {
+      constructor() {
+        return new Toolkit(module) as VerovioToolkitInstance;
+      }
     }
+    return { toolkit: ToolkitWrapper as unknown as VerovioGlobal["toolkit"] };
   } catch {
-    // Fall back to CDN loader below.
+    return loadVerovioFromCdn();
   }
-  return loadVerovioFromCdn();
 };
 
 const NOTE_NAMES = [
