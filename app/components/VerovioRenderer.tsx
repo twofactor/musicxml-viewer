@@ -316,19 +316,23 @@ const VerovioRenderer = forwardRef<MusicRendererHandle, VerovioRendererProps>(
       let cancelled = false;
 
       const renderScore = async () => {
+        let stage = "init";
         try {
           setIsLoading(true);
           setError(null);
 
+          stage = "load-xml";
           const xml = await loadXml(xmlUrl, xmlText, xmlData);
           if (cancelled) {
             return;
           }
 
+          stage = "load-verovio";
           const verovio = await loadVerovioToolkit();
           const toolkit = new verovio.toolkit();
           toolkitRef.current = toolkit;
 
+          stage = "set-options";
           toolkit.setOptions({
             scale: 55,
             adjustPageHeight: true,
@@ -339,9 +343,11 @@ const VerovioRenderer = forwardRef<MusicRendererHandle, VerovioRendererProps>(
             pageMarginRight: 35,
           });
 
+          stage = "load-data";
           toolkit.loadData(xml);
           const pageCount = toolkit.getPageCount();
           const pages: string[] = [];
+          stage = "render-svg";
           for (let i = 1; i <= pageCount; i += 1) {
             pages.push(toolkit.renderToSVG(i));
           }
@@ -456,7 +462,11 @@ const VerovioRenderer = forwardRef<MusicRendererHandle, VerovioRendererProps>(
           if (cancelled) {
             return;
           }
-          setError(err instanceof Error ? err.message : "Unable to load score.");
+          const details =
+            err instanceof Error
+              ? `${err.message}${err.stack ? `\n${err.stack}` : ""}`
+              : String(err);
+          setError(`Verovio ${stage} failed: ${details}`);
           setIsLoading(false);
         }
       };
