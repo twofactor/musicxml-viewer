@@ -33,3 +33,18 @@ body {
   max-width: 100%;
   height: auto;
 }
+
+.verovio-container svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.verovio-note-selected path,
+.verovio-note-selected use,
+.verovio-note-selected rect,
+.verovio-note-selected circle,
+.verovio-note-selected ellipse {
+  fill: #f59e0b !important;
+  stroke: #f59e0b !important;
+}

@@ -9,6 +9,7 @@ import MusicRenderer, {
   type PlaybackEvent,
 } from "./MusicRenderer";
 import PianoVisualizer from "./PianoVisualizer";
+import VerovioRenderer from "./VerovioRenderer";
 
 type Screen =
   | { type: "library" }
@@ -20,7 +21,11 @@ export default function App() {
   const [isDragging, setIsDragging] = useState(false);
   const [activeTool, setActiveTool] = useState<"note" | "bar">("note");
   const [isPlaying, setIsPlaying] = useState(false);
-  const rendererRef = useRef<MusicRendererHandle | null>(null);
+  const [rendererMode, setRendererMode] = useState<"osmd" | "verovio">(
+    "verovio"
+  );
+  const osmdRef = useRef<MusicRendererHandle | null>(null);
+  const verovioRef = useRef<MusicRendererHandle | null>(null);
   const playbackEventsRef = useRef<PlaybackEvent[]>([]);
   const playbackTimeoutsRef = useRef<number[]>([]);
   const playbackStartRef = useRef<number | null>(null);
@@ -96,10 +101,12 @@ export default function App() {
       if (resetPlayhead) {
         playheadRef.current = 0;
       }
-      rendererRef.current?.clearHighlights();
+      const activeRenderer =
+        rendererMode === "verovio" ? verovioRef.current : osmdRef.current;
+      activeRenderer?.clearHighlights();
       setSelectedNotes([]);
     },
-    [clearPlaybackTimers]
+    [clearPlaybackTimers, rendererMode]
   );
 
   const scheduleEvents = (
@@ -131,7 +138,9 @@ export default function App() {
         if (usePlaybackState && !isPlayingRef.current) {
           return;
         }
-        rendererRef.current?.highlightEntries(event.entries);
+        const activeRenderer =
+          rendererMode === "verovio" ? verovioRef.current : osmdRef.current;
+        activeRenderer?.highlightEntries(event.entries);
         playChord(event.selections, event.durationSec);
       }, delayMs);
       playbackTimeoutsRef.current.push(timeoutId);
@@ -144,7 +153,9 @@ export default function App() {
       if (usePlaybackState) {
         stopPlayback(true);
       } else {
-        rendererRef.current?.clearHighlights();
+        const activeRenderer =
+          rendererMode === "verovio" ? verovioRef.current : osmdRef.current;
+        activeRenderer?.clearHighlights();
       }
     }, Math.max(0, endMs));
     playbackTimeoutsRef.current.push(finishId);
@@ -198,16 +209,22 @@ export default function App() {
     [stopPlayback]
   );
 
+  useEffect(() => {
+    stopPlayback(true);
+  }, [rendererMode, stopPlayback]);
+
   const goToLibrary = () => {
     setScreen({ type: "library" });
     setSelectedNotes([]);
     stopPlayback(true);
+    setRendererMode("osmd");
   };
 
   const openSong = (song: Song) => {
     setScreen({ type: "viewer", song });
     setSelectedNotes([]);
     stopPlayback(true);
+    setRendererMode("osmd");
   };
 
   const openLocalFile = async (file: File) => {
@@ -226,6 +243,7 @@ export default function App() {
     setScreen({ type: "viewer", song: localSong, xmlText, xmlData });
     setSelectedNotes([]);
     stopPlayback(true);
+    setRendererMode("osmd");
   };
 
   useEffect(() => {
@@ -377,9 +395,20 @@ export default function App() {
         <div className="absolute left-1/2 -translate-x-1/2 text-center">
           <h1 className="text-sm font-semibold text-amber-100">{song.title}</h1>
           <p className="text-[10px] text-amber-300/70">{song.composer}</p>
+          {rendererMode === "verovio" && (
+            <p className="text-[10px] text-amber-200/80">Verovio renderer</p>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            onClick={() =>
+              setRendererMode((prev) => (prev === "osmd" ? "verovio" : "osmd"))
+            }
+            className="rounded-md border border-amber-600/60 px-2.5 py-1.5 text-[11px] font-semibold text-amber-100 transition hover:bg-amber-700/40"
+          >
+            {rendererMode === "osmd" ? "OSMD" : "Verovio"}
+          </button>
           <button
             onClick={() => (isPlaying ? pausePlayback() : startPlayback())}
             className="flex items-center gap-1.5 rounded-md bg-amber-700/50 px-2.5 py-1.5 text-xs font-semibold text-amber-100 transition hover:bg-amber-700"
@@ -413,17 +442,31 @@ export default function App() {
 
       {/* Sheet music area */}
       <main className="score-scroll flex-1 overflow-y-auto overflow-x-hidden">
-        <MusicRenderer
-          ref={rendererRef}
-          xmlUrl={song.file || undefined}
-          xmlText={screen.xmlText}
-          xmlData={screen.xmlData}
-          activeTool={activeTool}
-          onNoteSelected={setSelectedNotes}
-          onNotePlayed={handleNotePlayed}
-          onBarTriggered={handleBarTriggered}
-          onScoreReady={handleScoreReady}
-        />
+        {rendererMode === "osmd" ? (
+          <MusicRenderer
+            ref={osmdRef}
+            xmlUrl={song.file || undefined}
+            xmlText={screen.xmlText}
+            xmlData={screen.xmlData}
+            activeTool={activeTool}
+            onNoteSelected={setSelectedNotes}
+            onNotePlayed={handleNotePlayed}
+            onBarTriggered={handleBarTriggered}
+            onScoreReady={handleScoreReady}
+          />
+        ) : (
+          <VerovioRenderer
+            ref={verovioRef}
+            xmlUrl={song.file || undefined}
+            xmlText={screen.xmlText}
+            xmlData={screen.xmlData}
+            activeTool={activeTool}
+            onNoteSelected={setSelectedNotes}
+            onNotePlayed={handleNotePlayed}
+            onBarTriggered={handleBarTriggered}
+            onScoreReady={handleScoreReady}
+          />
+        )}
       </main>
 
       {/* Piano at bottom */}

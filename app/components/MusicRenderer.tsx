@@ -18,9 +18,11 @@ export type NoteSelection = {
 export type NoteEntry = {
   selection: NoteSelection;
   gNote?: any;
+  elementId?: string;
   chordEntries?: NoteEntry[];
   sourceNote?: any;
   sourceMeasure?: any;
+  measureId?: string;
   timestamp?: number;
   duration?: number;
 };
@@ -211,13 +213,6 @@ const buildMeasureHitboxes = (
       });
     });
   });
-
-  if (measureHitboxes.length) {
-    const xs = measureHitboxes.map((m) => m.x);
-    const ys = measureHitboxes.map((m) => m.y);
-    const rights = measureHitboxes.map((m) => m.x + m.width);
-    const bottoms = measureHitboxes.map((m) => m.y + m.height);
-  }
 
   return measureHitboxes;
 };
@@ -546,44 +541,6 @@ const MusicRenderer = forwardRef<MusicRendererHandle, MusicRendererProps>(
         ((clientY - rect.top) / rect.height) * viewBox.height + viewBox.y;
 
       const padding = 4;
-      const measureBounds = measureHitboxesRef.current.length
-        ? measureHitboxesRef.current.reduce(
-            (acc, measure) => {
-              return {
-                minX: Math.min(acc.minX, measure.x),
-                maxX: Math.max(acc.maxX, measure.x + measure.width),
-                minY: Math.min(acc.minY, measure.y),
-                maxY: Math.max(acc.maxY, measure.y + measure.height),
-              };
-            },
-            {
-              minX: Number.POSITIVE_INFINITY,
-              maxX: Number.NEGATIVE_INFINITY,
-              minY: Number.POSITIVE_INFINITY,
-              maxY: Number.NEGATIVE_INFINITY,
-            }
-          )
-        : null;
-      const mappedClickX = measureBounds
-        ? ((clickX - viewBox.x) / viewBox.width) *
-            (measureBounds.maxX - measureBounds.minX) +
-          measureBounds.minX
-        : clickX;
-      const mappedClickY = measureBounds
-        ? ((clickY - viewBox.y) / viewBox.height) *
-            (measureBounds.maxY - measureBounds.minY) +
-          measureBounds.minY
-        : clickY;
-      const mappedHit = measureBounds
-        ? measureHitboxesRef.current.some((measure) => {
-            return (
-              mappedClickX >= measure.x - padding &&
-              mappedClickX <= measure.x + measure.width + padding &&
-              mappedClickY >= measure.y - padding &&
-              mappedClickY <= measure.y + measure.height + padding
-            );
-          })
-        : false;
 
       let best: NoteHitbox | null = null;
       let bestDistance = Number.POSITIVE_INFINITY;
@@ -834,6 +791,32 @@ const MusicRenderer = forwardRef<MusicRendererHandle, MusicRendererProps>(
             (measureBounds.maxY - measureBounds.minY) +
           measureBounds.minY
         : clickY;
+
+      const nearestNote = hitboxesRef.current.reduce<{
+        entry: NoteEntry;
+        distance: number;
+      } | null>((best, hitbox) => {
+        const centerX = hitbox.x + hitbox.width / 2;
+        const centerY = hitbox.y + hitbox.height / 2;
+        const dx = centerX - mappedClickX;
+        const dy = centerY - mappedClickY;
+        const distance = dx * dx + dy * dy;
+        if (!best || distance < best.distance) {
+          return { entry: hitbox.entry, distance };
+        }
+        return best;
+      }, null);
+      if (nearestNote?.entry?.sourceMeasure) {
+        const measure = nearestNote.entry.sourceMeasure;
+        const entries = entriesByMeasureRef.current.get(measure) ?? [];
+        if (entries.length) {
+          clearHighlights();
+          onNoteSelected([]);
+          const events = buildBarEvents(entries, measure);
+          onBarTriggered?.(events);
+          return;
+        }
+      }
       const padding = 6;
       const lookupX = measureBounds ? mappedClickX : clickX;
       const lookupY = measureBounds ? mappedClickY : clickY;

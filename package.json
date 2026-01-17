@@ -4,15 +4,17 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint"
   },
   "dependencies": {
+    "jszip": "^3.10.1",
     "next": "16.1.2",
     "opensheetmusicdisplay": "^1.9.1",
     "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "react-dom": "19.2.3",
+    "verovio": "^5.7.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
