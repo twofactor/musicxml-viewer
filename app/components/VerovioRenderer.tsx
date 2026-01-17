@@ -352,6 +352,11 @@ const VerovioRenderer = forwardRef<MusicRendererHandle, VerovioRendererProps>(
           stage = "load-data";
           toolkit.loadData(xml);
           const pageCount = toolkit.getPageCount();
+          if (!pageCount || pageCount < 1) {
+            setError("Verovio returned 0 pages for this score.");
+            setIsLoading(false);
+            return;
+          }
           const pages: string[] = [];
           stage = "render-svg";
           for (let i = 1; i <= pageCount; i += 1) {
@@ -365,6 +370,11 @@ const VerovioRenderer = forwardRef<MusicRendererHandle, VerovioRendererProps>(
           const container = containerRef.current;
           if (container) {
             container.innerHTML = pages.join("");
+          }
+          if (!pages.join("").trim()) {
+            setError("Verovio rendered empty SVG output.");
+            setIsLoading(false);
+            return;
           }
 
           const elementMap = new Map<string, Element>();
