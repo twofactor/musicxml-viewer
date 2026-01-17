@@ -43,8 +43,22 @@ const NOTE_NAMES = [
 ];
 
 const toNoteNameFromMidi = (midi: number) => {
+  const localNames = [
+    "C",
+    "C#",
+    "D",
+    "D#",
+    "E",
+    "F",
+    "F#",
+    "G",
+    "G#",
+    "A",
+    "A#",
+    "B",
+  ];
   const octave = Math.floor(midi / 12) - 1;
-  const name = NOTE_NAMES[midi % 12];
+  const name = localNames[midi % 12];
   return `${name}${octave}`;
 };
 
@@ -109,30 +123,37 @@ const getPitchData = (element: Element) => {
 };
 
 const toMidiFromPitchData = (pname: string, octave: number, accid?: string) => {
-  const NOTE_TO_SEMITONE: Record<string, number> = {
-    C: 0,
-    D: 2,
-    E: 4,
-    F: 5,
-    G: 7,
-    A: 9,
-    B: 11,
-  };
-  const ACCIDENTAL_TO_OFFSET: Record<string, number> = {
-    s: 1,
-    f: -1,
-    n: 0,
-    ss: 2,
-    ff: -2,
-    x: 2,
-    xs: 2,
-  };
-  const step = NOTE_TO_SEMITONE[pname.toUpperCase()];
-  if (step === undefined || Number.isNaN(octave)) {
+  try {
+    if (typeof pname !== "string") {
+      return null;
+    }
+    const NOTE_TO_SEMITONE: Record<string, number> = {
+      C: 0,
+      D: 2,
+      E: 4,
+      F: 5,
+      G: 7,
+      A: 9,
+      B: 11,
+    };
+    const ACCIDENTAL_TO_OFFSET: Record<string, number> = {
+      s: 1,
+      f: -1,
+      n: 0,
+      ss: 2,
+      ff: -2,
+      x: 2,
+      xs: 2,
+    };
+    const step = NOTE_TO_SEMITONE[pname.toUpperCase()];
+    if (step === undefined || Number.isNaN(octave)) {
+      return null;
+    }
+    const accidental = accid ? ACCIDENTAL_TO_OFFSET[accid] ?? 0 : 0;
+    return (octave + 1) * 12 + step + accidental;
+  } catch {
     return null;
   }
-  const accidental = accid ? ACCIDENTAL_TO_OFFSET[accid] ?? 0 : 0;
-  return (octave + 1) * 12 + step + accidental;
 };
 
 const buildPlaybackEvents = (
@@ -196,6 +217,7 @@ const VerovioRenderer = forwardRef<MusicRendererHandle, VerovioRendererProps>(
     const entriesByMeasureRef = useRef<Map<string, NoteEntry[]>>(new Map());
     const chordGroupsRef = useRef<Map<string, NoteEntry[]>>(new Map());
     const highlightedRef = useRef<Element[]>([]);
+    const parseErrorRef = useRef(false);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -291,65 +313,77 @@ const VerovioRenderer = forwardRef<MusicRendererHandle, VerovioRendererProps>(
             container?.querySelectorAll<Element>("g.note") ?? [];
 
           noteElements.forEach((noteElement, index) => {
-            const id = noteElement.getAttribute("id");
-            if (!id) {
+            if (parseErrorRef.current) {
               return;
             }
-
-            const pitchData = getPitchData(noteElement);
-            if (!pitchData) {
-              return;
-            }
-
-            const midi = toMidiFromPitchData(
-              pitchData.pname,
-              pitchData.octave,
-              pitchData.accid ?? undefined
-            );
-            if (midi === null) {
-              return;
-            }
-
-            const name = toNoteNameFromMidi(midi);
-            const selection: NoteSelection = { name, midi };
-
-            const onsetRaw = noteElement.getAttribute("data-onset");
-            const durRaw = noteElement.getAttribute("data-dur");
-            const onset = onsetRaw ? Number(onsetRaw) : undefined;
-            const duration = durRaw ? Number(durRaw) : undefined;
-
-            const measureElement = noteElement.closest(".measure") as
-              | Element
-              | null;
-            const measureId = measureElement?.getAttribute("id") ?? undefined;
-
-            const entry: NoteEntry = {
-              selection,
-              elementId: id,
-              measureId,
-              sourceMeasure: measureId,
-              timestamp: Number.isFinite(onset) ? onset : undefined,
-              duration: Number.isFinite(duration) ? duration : undefined,
-            };
-
-            entries.push(entry);
-            elementMap.set(id, noteElement);
-
-            if (measureId) {
-              if (!entriesByMeasure.has(measureId)) {
-                entriesByMeasure.set(measureId, []);
+            try {
+              const id = noteElement.getAttribute("id");
+              if (!id) {
+                return;
               }
-              entriesByMeasure.get(measureId)!.push(entry);
-            }
 
-            const chordKey =
-              measureId && Number.isFinite(onset)
-                ? `${measureId}:${onset}`
-                : `${measureId ?? "unknown"}:${index}`;
-            if (!chordGroups.has(chordKey)) {
-              chordGroups.set(chordKey, []);
+              const pitchData = getPitchData(noteElement);
+              if (!pitchData) {
+                return;
+              }
+
+              const midi = toMidiFromPitchData(
+                pitchData.pname,
+                pitchData.octave,
+                pitchData.accid ?? undefined
+              );
+              if (midi === null) {
+                return;
+              }
+
+              const name = toNoteNameFromMidi(midi);
+              const selection: NoteSelection = { name, midi };
+
+              const onsetRaw = noteElement.getAttribute("data-onset");
+              const durRaw = noteElement.getAttribute("data-dur");
+              const onset = onsetRaw ? Number(onsetRaw) : undefined;
+              const duration = durRaw ? Number(durRaw) : undefined;
+
+              const measureElement = noteElement.closest(".measure") as
+                | Element
+                | null;
+              const measureId =
+                measureElement?.getAttribute("id") ?? undefined;
+
+              const entry: NoteEntry = {
+                selection,
+                elementId: id,
+                measureId,
+                sourceMeasure: measureId,
+                timestamp: Number.isFinite(onset) ? onset : undefined,
+                duration: Number.isFinite(duration) ? duration : undefined,
+              };
+
+              entries.push(entry);
+              elementMap.set(id, noteElement);
+
+              if (measureId) {
+                if (!entriesByMeasure.has(measureId)) {
+                  entriesByMeasure.set(measureId, []);
+                }
+                entriesByMeasure.get(measureId)!.push(entry);
+              }
+
+              const chordKey =
+                measureId && Number.isFinite(onset)
+                  ? `${measureId}:${onset}`
+                  : `${measureId ?? "unknown"}:${index}`;
+              if (!chordGroups.has(chordKey)) {
+                chordGroups.set(chordKey, []);
+              }
+              chordGroups.get(chordKey)!.push(entry);
+            } catch (err) {
+              parseErrorRef.current = true;
+              const details = err instanceof Error ? err.message : String(err);
+              setError(
+                `Verovio note parse failed: ${details} (note index ${index})`
+              );
             }
-            chordGroups.get(chordKey)!.push(entry);
           });
 
           chordGroups.forEach((group) => {
