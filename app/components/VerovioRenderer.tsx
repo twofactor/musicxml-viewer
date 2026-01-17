@@ -253,10 +253,10 @@ const VerovioRenderer = forwardRef<MusicRendererHandle, VerovioRendererProps>(
             return;
           }
 
-          const [{ default: createVerovioModule }, { VerovioToolkit }] =
-            await Promise.all([import("verovio/wasm"), import("verovio/esm")]);
-          const verovioModule = await createVerovioModule();
-          const toolkit = new VerovioToolkit(verovioModule);
+          const verovioModule = await import("verovio");
+          const verovio =
+            (verovioModule as { default?: unknown }).default ?? verovioModule;
+          const toolkit = new (verovio as { toolkit: new () => any }).toolkit();
           toolkitRef.current = toolkit;
 
           toolkit.setOptions({

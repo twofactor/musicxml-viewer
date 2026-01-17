@@ -20,6 +20,7 @@ const nextConfig: NextConfig = {
     config.resolve.fallback = {
       ...(config.resolve.fallback ?? {}),
       module: false,
+      fs: false,
     };
     return config;
   },

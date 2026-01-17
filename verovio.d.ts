@@ -1,11 +1,6 @@
-declare module "verovio/wasm" {
-  const createVerovioModule: () => Promise<unknown>;
-  export default createVerovioModule;
-}
-
-declare module "verovio/esm" {
-  export class VerovioToolkit {
-    constructor(module: unknown);
+declare module "verovio" {
+  export class toolkit {
+    constructor();
     setOptions(options: Record<string, unknown>): void;
     loadData(data: string): void;
     getPageCount(): number;
