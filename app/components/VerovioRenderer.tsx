@@ -27,26 +27,6 @@ type VerovioRendererProps = {
   onScoreReady?: (events: PlaybackEvent[]) => void;
 };
 
-const NOTE_TO_SEMITONE: Record<string, number> = {
-  C: 0,
-  D: 2,
-  E: 4,
-  F: 5,
-  G: 7,
-  A: 9,
-  B: 11,
-};
-
-const ACCIDENTAL_TO_OFFSET: Record<string, number> = {
-  s: 1,
-  f: -1,
-  n: 0,
-  ss: 2,
-  ff: -2,
-  x: 2,
-  xs: 2,
-};
-
 const NOTE_NAMES = [
   "C",
   "C#",
@@ -129,11 +109,25 @@ const getPitchData = (element: Element) => {
 };
 
 const toMidiFromPitchData = (pname: string, octave: number, accid?: string) => {
-  const map =
-    NOTE_TO_SEMITONE && typeof NOTE_TO_SEMITONE === "object"
-      ? NOTE_TO_SEMITONE
-      : {};
-  const step = map[pname.toUpperCase()];
+  const NOTE_TO_SEMITONE: Record<string, number> = {
+    C: 0,
+    D: 2,
+    E: 4,
+    F: 5,
+    G: 7,
+    A: 9,
+    B: 11,
+  };
+  const ACCIDENTAL_TO_OFFSET: Record<string, number> = {
+    s: 1,
+    f: -1,
+    n: 0,
+    ss: 2,
+    ff: -2,
+    x: 2,
+    xs: 2,
+  };
+  const step = NOTE_TO_SEMITONE[pname.toUpperCase()];
   if (step === undefined || Number.isNaN(octave)) {
     return null;
   }
