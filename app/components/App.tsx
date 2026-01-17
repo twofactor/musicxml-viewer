@@ -24,6 +24,7 @@ export default function App() {
   const [rendererMode, setRendererMode] = useState<"osmd" | "verovio">(
     "verovio"
   );
+  const [runtimeError, setRuntimeError] = useState<string | null>(null);
   const osmdRef = useRef<MusicRendererHandle | null>(null);
   const verovioRef = useRef<MusicRendererHandle | null>(null);
   const playbackEventsRef = useRef<PlaybackEvent[]>([]);
@@ -212,6 +213,27 @@ export default function App() {
   useEffect(() => {
     stopPlayback(true);
   }, [rendererMode, stopPlayback]);
+
+  useEffect(() => {
+    const handleError = (event: ErrorEvent) => {
+      const message = event.error?.stack || event.message || "Unknown error";
+      setRuntimeError(message);
+      console.error("Runtime error:", message);
+    };
+    const handleRejection = (event: PromiseRejectionEvent) => {
+      const reason = event.reason;
+      const message =
+        reason?.stack || reason?.message || String(reason || "Unknown rejection");
+      setRuntimeError(message);
+      console.error("Unhandled rejection:", message);
+    };
+    window.addEventListener("error", handleError);
+    window.addEventListener("unhandledrejection", handleRejection);
+    return () => {
+      window.removeEventListener("error", handleError);
+      window.removeEventListener("unhandledrejection", handleRejection);
+    };
+  }, []);
 
   const goToLibrary = () => {
     setScreen({ type: "library" });
@@ -439,6 +461,11 @@ export default function App() {
           </div>
         </div>
       </header>
+      {runtimeError && (
+        <div className="border-b border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+          {runtimeError}
+        </div>
+      )}
 
       {/* Sheet music area */}
       <main className="score-scroll flex-1 overflow-y-auto overflow-x-hidden">
