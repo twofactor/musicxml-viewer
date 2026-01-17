@@ -129,6 +129,9 @@ const getPitchData = (element: Element) => {
 };
 
 const toMidiFromPitchData = (pname: string, octave: number, accid?: string) => {
+  if (!NOTE_TO_SEMITONE || typeof NOTE_TO_SEMITONE !== "object") {
+    return null;
+  }
   const step = NOTE_TO_SEMITONE[pname.toUpperCase()];
   if (step === undefined || Number.isNaN(octave)) {
     return null;
