@@ -369,11 +369,25 @@ const VerovioRenderer = forwardRef<MusicRendererHandle, VerovioRendererProps>(
           }
 
           const container = containerRef.current;
+          const mergedSvg = pages.join("");
           if (container) {
-            container.innerHTML = pages.join("");
+            container.innerHTML = mergedSvg;
           }
-          if (!pages.join("").trim()) {
+          if (!mergedSvg.trim()) {
             setError("Verovio rendered empty SVG output.");
+            setIsLoading(false);
+            return;
+          }
+          const svgEl = container?.querySelector("svg");
+          if (!svgEl) {
+            setError("Verovio SVG not found in container.");
+            setIsLoading(false);
+            return;
+          }
+          const svgText = svgEl.outerHTML;
+          const rect = svgEl.getBoundingClientRect();
+          if (rect.width === 0 || rect.height === 0) {
+            setError("Verovio SVG has zero size.");
             setIsLoading(false);
             return;
           }
@@ -384,6 +398,11 @@ const VerovioRenderer = forwardRef<MusicRendererHandle, VerovioRendererProps>(
           const chordGroups = new Map<string, NoteEntry[]>();
           const noteElements =
             container?.querySelectorAll<Element>("g.note") ?? [];
+          if (!noteElements.length) {
+            setError("Verovio SVG contains no note elements.");
+            setIsLoading(false);
+            return;
+          }
 
           noteElements.forEach((noteElement, index) => {
             if (parseErrorRef.current) {
