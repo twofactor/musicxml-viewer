@@ -2,14 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { songs, type Song } from "../lib/songs";
-import {
+import MusicRenderer, {
   type MusicRendererHandle,
   type NoteEntry,
   type NoteSelection,
   type PlaybackEvent,
 } from "./MusicRenderer";
 import PianoVisualizer from "./PianoVisualizer";
-import VerovioRenderer from "./VerovioRenderer";
 
 type Screen =
   | { type: "library" }
@@ -22,7 +21,7 @@ export default function App() {
   const [activeTool, setActiveTool] = useState<"note" | "bar">("note");
   const [isPlaying, setIsPlaying] = useState(false);
   const [runtimeError, setRuntimeError] = useState<string | null>(null);
-  const verovioRef = useRef<MusicRendererHandle | null>(null);
+  const osmdRef = useRef<MusicRendererHandle | null>(null);
   const playbackEventsRef = useRef<PlaybackEvent[]>([]);
   const playbackTimeoutsRef = useRef<number[]>([]);
   const playbackStartRef = useRef<number | null>(null);
@@ -98,7 +97,7 @@ export default function App() {
       if (resetPlayhead) {
         playheadRef.current = 0;
       }
-      verovioRef.current?.clearHighlights();
+      osmdRef.current?.clearHighlights();
       setSelectedNotes([]);
     },
     [clearPlaybackTimers]
@@ -133,7 +132,7 @@ export default function App() {
         if (usePlaybackState && !isPlayingRef.current) {
           return;
         }
-        verovioRef.current?.highlightEntries(event.entries);
+        osmdRef.current?.highlightEntries(event.entries);
         playChord(event.selections, event.durationSec);
       }, delayMs);
       playbackTimeoutsRef.current.push(timeoutId);
@@ -146,7 +145,7 @@ export default function App() {
       if (usePlaybackState) {
         stopPlayback(true);
       } else {
-        verovioRef.current?.clearHighlights();
+        osmdRef.current?.clearHighlights();
       }
     }, Math.max(0, endMs));
     playbackTimeoutsRef.current.push(finishId);
@@ -413,7 +412,7 @@ export default function App() {
         <div className="absolute left-1/2 -translate-x-1/2 text-center">
           <h1 className="text-sm font-semibold text-amber-100">{song.title}</h1>
           <p className="text-[10px] text-amber-300/70">{song.composer}</p>
-          <p className="text-[10px] text-amber-200/80">Verovio renderer</p>
+          <p className="text-[10px] text-amber-200/80">OSMD renderer</p>
         </div>
 
         <div className="flex items-center gap-2">
@@ -455,8 +454,8 @@ export default function App() {
 
       {/* Sheet music area */}
       <main className="score-scroll flex-1 overflow-y-auto overflow-x-hidden">
-        <VerovioRenderer
-          ref={verovioRef}
+        <MusicRenderer
+          ref={osmdRef}
           xmlUrl={song.file || undefined}
           xmlText={screen.xmlText}
           xmlData={screen.xmlData}
