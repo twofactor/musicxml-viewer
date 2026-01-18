@@ -187,28 +187,85 @@ const buildMeasureHitboxes = (
 
   sheet.MusicPages.forEach((page: any) => {
     page.MusicSystems?.forEach((system: any) => {
+      let systemTop = Number.POSITIVE_INFINITY;
+      let systemBottom = Number.NEGATIVE_INFINITY;
+      const measuresByIndex = new Map<number, any[]>();
+
       system.StaffLines?.forEach((staffLine: any) => {
+        const staffBox = getBoundingBox(staffLine);
+        if (staffBox) {
+          systemTop = Math.min(systemTop, staffBox.y);
+          systemBottom = Math.max(systemBottom, staffBox.y + staffBox.height);
+        }
         staffLine.Measures?.forEach((measure: any, measureIndex: number) => {
           const box = getBoundingBox(measure);
           if (!box) {
             return;
           }
+          if (!measuresByIndex.has(measureIndex)) {
+            measuresByIndex.set(measureIndex, []);
+          }
+          measuresByIndex.get(measureIndex)!.push({ measure, box });
+        });
+      });
+
+      const systemHeight = systemBottom - systemTop;
+      if (!Number.isFinite(systemTop) || !Number.isFinite(systemBottom)) {
+        return;
+      }
+
+      const measureEntries = Array.from(measuresByIndex.entries())
+        .map(([index, items]) => {
+          const minX = Math.min(...items.map((item) => item.box.x));
+          const maxX = Math.max(
+            ...items.map((item) => item.box.x + item.box.width)
+          );
           const sourceMeasure =
-            measure?.parentSourceMeasure ?? measure?.ParentSourceMeasure;
-          const entries = sourceMeasure
-            ? entriesByMeasure.get(sourceMeasure) ?? []
-            : [];
-          const measureKey =
-            sourceMeasure?.measureListIndex ??
-            sourceMeasure?.MeasureNumber ??
-            measure?.MeasureNumber ??
-            measureIndex;
-          measureHitboxes.push({
-            measureKey,
+            items.find((item) => item.measure?.parentSourceMeasure)
+              ?.measure?.parentSourceMeasure ??
+            items.find((item) => item.measure?.ParentSourceMeasure)
+              ?.measure?.ParentSourceMeasure ??
+            items[0]?.measure?.parentSourceMeasure ??
+            items[0]?.measure?.ParentSourceMeasure;
+          return {
+            index,
+            minX,
+            maxX,
+            centerX: (minX + maxX) / 2,
             sourceMeasure,
-            entries,
-            ...box,
-          });
+            measure: items[0]?.measure,
+          };
+        })
+        .sort((a, b) => a.centerX - b.centerX);
+
+      measureEntries.forEach((entry, idx) => {
+        const prev = measureEntries[idx - 1];
+        const next = measureEntries[idx + 1];
+        const left =
+          prev && Number.isFinite(prev.centerX)
+            ? (prev.centerX + entry.centerX) / 2
+            : entry.minX;
+        const right =
+          next && Number.isFinite(next.centerX)
+            ? (entry.centerX + next.centerX) / 2
+            : entry.maxX;
+        const sourceMeasure = entry.sourceMeasure;
+        const entries = sourceMeasure
+          ? entriesByMeasure.get(sourceMeasure) ?? []
+          : [];
+        const measureKey =
+          sourceMeasure?.measureListIndex ??
+          sourceMeasure?.MeasureNumber ??
+          entry.measure?.MeasureNumber ??
+          entry.index;
+        measureHitboxes.push({
+          measureKey,
+          sourceMeasure,
+          entries,
+          x: left,
+          y: systemTop,
+          width: Math.max(0, right - left),
+          height: systemHeight,
         });
       });
     });
