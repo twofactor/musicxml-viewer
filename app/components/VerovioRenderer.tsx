@@ -348,10 +348,17 @@ const VerovioRenderer = forwardRef<MusicRendererHandle, VerovioRendererProps>(
             pageMarginBottom: 40,
             pageMarginLeft: 35,
             pageMarginRight: 35,
+            svgAdditionalAttribute:
+              "note@pname,note@oct,note@accid,note@accid.ges",
           });
 
           stage = "load-data";
-          toolkit.loadData(xml);
+          const loadResult = toolkit.loadData(xml);
+          if (typeof loadResult === "boolean" && loadResult === false) {
+            setError("Verovio failed to load MusicXML data.");
+            setIsLoading(false);
+            return;
+          }
           const pageCount = toolkit.getPageCount();
           if (!pageCount || pageCount < 1) {
             setError("Verovio returned 0 pages for this score.");
