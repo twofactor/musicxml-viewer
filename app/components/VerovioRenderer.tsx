@@ -340,6 +340,7 @@ const VerovioRenderer = forwardRef<MusicRendererHandle, VerovioRendererProps>(
 
           stage = "set-options";
           toolkit.setOptions({
+            inputFrom: "musicxml",
             scale: 55,
             adjustPageHeight: true,
             adjustPageWidth: true,
