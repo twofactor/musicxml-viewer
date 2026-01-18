@@ -397,9 +397,9 @@ const VerovioRenderer = forwardRef<MusicRendererHandle, VerovioRendererProps>(
           const entriesByMeasure = new Map<string, NoteEntry[]>();
           const chordGroups = new Map<string, NoteEntry[]>();
           const noteElements =
-            container?.querySelectorAll<Element>("g.note") ?? [];
+            container?.querySelectorAll<Element>("[data-pname]") ?? [];
           if (!noteElements.length) {
-            setError("Verovio SVG contains no note elements.");
+            setError("Verovio SVG contains no pitch elements.");
             setIsLoading(false);
             return;
           }
@@ -409,7 +409,12 @@ const VerovioRenderer = forwardRef<MusicRendererHandle, VerovioRendererProps>(
               return;
             }
             try {
-              const id = noteElement.getAttribute("id");
+              const noteGroup =
+                noteElement.closest("g.note") ??
+                noteElement.closest("[id]") ??
+                noteElement;
+              const id =
+                noteGroup.getAttribute("id") ?? noteElement.getAttribute("id");
               if (!id) {
                 return;
               }
@@ -436,7 +441,7 @@ const VerovioRenderer = forwardRef<MusicRendererHandle, VerovioRendererProps>(
               const onset = onsetRaw ? Number(onsetRaw) : undefined;
               const duration = durRaw ? Number(durRaw) : undefined;
 
-              const measureElement = noteElement.closest(".measure") as
+              const measureElement = noteGroup.closest(".measure") as
                 | Element
                 | null;
               const measureId =
@@ -519,9 +524,9 @@ const VerovioRenderer = forwardRef<MusicRendererHandle, VerovioRendererProps>(
         event.clientX,
         event.clientY
       );
-      const noteElement = elementsAtPoint.find((el) =>
-        el.classList?.contains("note")
-      );
+      const noteElement =
+        elementsAtPoint.find((el) => el.classList?.contains("note")) ??
+        elementsAtPoint.find((el) => el.hasAttribute?.("data-pname"));
       const measureElement =
         noteElement?.closest?.(".measure") ??
         elementsAtPoint.find((el) => el.classList?.contains("measure"));
@@ -530,7 +535,9 @@ const VerovioRenderer = forwardRef<MusicRendererHandle, VerovioRendererProps>(
         if (!noteElement) {
           return;
         }
-        const noteId = noteElement.getAttribute("id");
+        const noteId =
+          noteElement.getAttribute("id") ??
+          noteElement.closest?.("[id]")?.getAttribute("id");
         if (!noteId) {
           return;
         }
