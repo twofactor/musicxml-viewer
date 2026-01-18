@@ -221,34 +221,35 @@ const buildMeasureHitboxes = (
             ...items.map((item) => item.box.x + item.box.width)
           );
           const sourceMeasure =
-            items.find((item) => item.measure?.parentSourceMeasure)
-              ?.measure?.parentSourceMeasure ??
-            items.find((item) => item.measure?.ParentSourceMeasure)
-              ?.measure?.ParentSourceMeasure ??
+            items.find((item) => item.measure?.parentSourceMeasure)?.measure
+              ?.parentSourceMeasure ??
+            items.find((item) => item.measure?.ParentSourceMeasure)?.measure
+              ?.ParentSourceMeasure ??
             items[0]?.measure?.parentSourceMeasure ??
             items[0]?.measure?.ParentSourceMeasure;
           return {
             index,
             minX,
             maxX,
-            centerX: (minX + maxX) / 2,
+            leftEdge: minX,
+            rightEdge: maxX,
             sourceMeasure,
             measure: items[0]?.measure,
           };
         })
-        .sort((a, b) => a.centerX - b.centerX);
+        .sort((a, b) => a.leftEdge - b.leftEdge);
 
       measureEntries.forEach((entry, idx) => {
         const prev = measureEntries[idx - 1];
         const next = measureEntries[idx + 1];
         const left =
-          prev && Number.isFinite(prev.centerX)
-            ? (prev.centerX + entry.centerX) / 2
-            : entry.minX;
+          prev && Number.isFinite(prev.rightEdge)
+            ? (prev.rightEdge + entry.leftEdge) / 2
+            : entry.leftEdge;
         const right =
-          next && Number.isFinite(next.centerX)
-            ? (entry.centerX + next.centerX) / 2
-            : entry.maxX;
+          next && Number.isFinite(next.leftEdge)
+            ? (entry.rightEdge + next.leftEdge) / 2
+            : entry.rightEdge;
         const sourceMeasure = entry.sourceMeasure;
         const entries = sourceMeasure
           ? entriesByMeasure.get(sourceMeasure) ?? []
