@@ -62,6 +62,7 @@ type MusicRendererProps = {
   xmlText?: string;
   xmlData?: ArrayBuffer;
   activeTool: "note" | "bar";
+  showBarOverlay?: boolean;
   onNoteSelected: (notes: NoteSelection[]) => void;
   onNotePlayed?: (entries: NoteEntry[]) => void;
   onBarTriggered?: (events: PlaybackEvent[]) => void;
@@ -250,6 +251,8 @@ const buildMeasureHitboxes = (
           next && Number.isFinite(next.leftEdge)
             ? (entry.rightEdge + next.leftEdge) / 2
             : entry.rightEdge;
+        const padX = 2;
+        const padY = 4;
         const sourceMeasure = entry.sourceMeasure;
         const entries = sourceMeasure
           ? entriesByMeasure.get(sourceMeasure) ?? []
@@ -263,10 +266,10 @@ const buildMeasureHitboxes = (
           measureKey,
           sourceMeasure,
           entries,
-          x: left,
-          y: systemTop,
-          width: Math.max(0, right - left),
-          height: systemHeight,
+          x: left - padX,
+          y: systemTop - padY,
+          width: Math.max(0, right - left) + padX * 2,
+          height: systemHeight + padY * 2,
         });
       });
     });
@@ -417,6 +420,7 @@ const MusicRenderer = forwardRef<MusicRendererHandle, MusicRendererProps>(
       xmlText,
       xmlData,
       activeTool,
+      showBarOverlay = false,
       onNoteSelected,
       onNotePlayed,
       onBarTriggered,
@@ -964,6 +968,23 @@ const MusicRenderer = forwardRef<MusicRendererHandle, MusicRendererProps>(
               <div className="h-8 w-8 animate-spin rounded-full border-4 border-amber-300 border-t-amber-700" />
               <p className="text-sm text-amber-800">Loading score...</p>
             </div>
+          </div>
+        )}
+
+        {showBarOverlay && measureHitboxesRef.current.length > 0 && (
+          <div className="pointer-events-none absolute inset-0 z-20">
+            {measureHitboxesRef.current.map((measure) => (
+              <div
+                key={`${measure.measureKey}-${measure.x}-${measure.y}`}
+                className="absolute rounded-sm border border-emerald-400/70 bg-emerald-300/10"
+                style={{
+                  left: `${measure.x}px`,
+                  top: `${measure.y}px`,
+                  width: `${measure.width}px`,
+                  height: `${measure.height}px`,
+                }}
+              />
+            ))}
           </div>
         )}
 

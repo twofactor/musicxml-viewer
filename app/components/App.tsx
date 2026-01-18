@@ -460,6 +460,7 @@ export default function App() {
           xmlText={screen.xmlText}
           xmlData={screen.xmlData}
           activeTool={activeTool}
+          showBarOverlay
           onNoteSelected={setSelectedNotes}
           onNotePlayed={handleNotePlayed}
           onBarTriggered={handleBarTriggered}
