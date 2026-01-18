@@ -399,7 +399,11 @@ const VerovioRenderer = forwardRef<MusicRendererHandle, VerovioRendererProps>(
           const noteElements =
             container?.querySelectorAll<Element>("[data-pname]") ?? [];
           if (!noteElements.length) {
-            setError("Verovio SVG contains no pitch elements.");
+            const noteCount = container?.querySelectorAll("g.note").length ?? 0;
+            const snippet = mergedSvg.slice(0, 400).replace(/\s+/g, " ");
+            setError(
+              `Verovio SVG contains no pitch elements. Notes:${noteCount}. Snippet: ${snippet}`
+            );
             setIsLoading(false);
             return;
           }
